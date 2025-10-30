@@ -312,7 +312,6 @@ export async function run() {
           );
           console.log(array);
           console.log(JSON.stringify(array));
-          
           newDoc = {
             ...newDocs,
             handshake: newDocs.handshake + `{"server": "ok"}`,
