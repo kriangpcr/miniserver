@@ -4,6 +4,40 @@ import { replicateGraphQL } from "rxdb/plugins/replication-graphql";
 const GRAPHQL_HTTP_URL = "http://localhost:3001/graphql";
 const GRAPHQL_WS_URL = "ws://localhost:3001/graphql";
 
+// ฟังก์ชันตรวจสอบการเชื่อมต่อ
+async function checkConnection() {
+  try {
+    console.log("🔍 Checking connection to GraphQL server...");
+    
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000); // timeout 5 วินาที
+    
+    const response = await fetch(GRAPHQL_HTTP_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        query: '{ __typename }' // Simple introspection query
+      }),
+      signal: controller.signal
+    });
+    
+    clearTimeout(timeoutId);
+    
+    if (response.ok) {
+      console.log("✅ Connection to GraphQL server successful!");
+      return true;
+    } else {
+      console.warn("⚠️ GraphQL server responded with error:", response.status);
+      return false;
+    }
+  } catch (error) {
+    console.error("❌ Cannot connect to GraphQL server:", error.message);
+    return false;
+  }
+}
+
 import {
   pullTransactionQueryBuilder,
   pushTransactionQueryBuilder,
@@ -19,7 +53,6 @@ import {
   pullStreamLogClientQueryBuilder,
 } from "./querybuilder.js";
 
-// ฟังก์ชันสำหรับสร้าง replication ของแต่ละ collection
 function setupCollectionReplication(collection, config) {
   const replication = replicateGraphQL({
     collection,
@@ -61,7 +94,6 @@ function setupCollectionReplication(collection, config) {
     autoStart: true,
   });
 
-  // Subscribe to events
   replication.error$.subscribe((err) => {
     console.error(`[${config.name} Replication Error]`, err);
   });
@@ -78,10 +110,34 @@ function setupCollectionReplication(collection, config) {
   return replication;
 }
 
+export async function retryConnection() {
+  const isConnected = await checkConnection();
+  
+  if (isConnected) {
+    console.log("🔄 Connection restored! Starting replication...");
+    return await startReplication();
+  } else {
+    console.log("❌ Still cannot connect to server.");
+    return null;
+  }
+}
+
 export async function startReplication() {
   const db = await initDB();
 
-  // กำหนด config สำหรับแต่ละตาราง
+  // ตรวจสอบการเชื่อมต่อก่อน
+  const isConnected = await checkConnection();
+  
+  if (!isConnected) {
+    console.warn("⚠️ Cannot connect to GraphQL server. Skipping replication setup.");
+    console.log("📱 Running in offline mode - data will be stored locally only.");
+    return {
+      db,
+      replications: null,
+      isOfflineMode: true
+    };
+  }
+
   const replicationConfigs = [
     {
       name: "transaction",
@@ -112,24 +168,29 @@ export async function startReplication() {
       pullStreamQueryBuilder: pullStreamLogClientQueryBuilder,
     },
   ];
-
+  console.log("🔄 Setting up replication for all collections...");
   const replications = replicationConfigs.map((config) =>
     setupCollectionReplication(config.collection, config)
   );
 
-  await Promise.all(
-    replications.map((replication) => replication.awaitInitialReplication())
-  );
-
-  console.log("✅ All replications ready!");
+  try {
+    await Promise.all(
+      replications.map((replication) => replication.awaitInitialReplication())
+    );
+    
+    console.log("✅ All replications ready!");
+  } catch (error) {
+    console.error("❌ Error during initial replication:", error);
+  }
 
   return {
     db,
     replications: {
       transaction: replications[0],
-      user: replications[1],
-      product: replications[2],
-      // เพิ่มตาม config ที่กำหนด
+      door: replications[1],
+      handshake: replications[2],
+      logclient: replications[3],
     },
+    isOfflineMode: false
   };
 }

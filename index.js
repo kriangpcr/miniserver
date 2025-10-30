@@ -45,15 +45,12 @@ export async function run() {
 
   const root = {
     pullTransaction: async (args, request) => {
-      log("## pullTransaction()");
-      log(args);
       const lastId = args.input.checkpoint ? args.input.checkpoint.id : "";
       const minUpdated = args.input.checkpoint
         ? args.input.checkpoint.server_updated_at
         : 0;
       let allDocs = [];
       if (!args.input.where) {
-        console.log("1");
         allDocs = await db.transaction.find().exec();
       } else {
         let status = args.input.where.status ? args.input.where.status : "";
@@ -94,7 +91,6 @@ export async function run() {
               server_updated_at: minUpdated,
             },
       };
-      console.log(JSON.stringify(ret, null, 4));
       return ret;
     },
     pushTransaction: async (args, request) => {
@@ -155,16 +151,12 @@ export async function run() {
           checkpoint: lastCheckpoint,
         },
       });
-      console.log(writtenDocs);
-
       return writtenDocs;
     },
     streamTransaction2: async (args) => {
       return pubsub.asyncIterableIterator("streamTransaction2");
     },
     pullDoors: async (args, request) => {
-      log("## pullDoors()");
-      log(args);
       const lastId = args.input.checkpoint ? args.input.checkpoint.id : "";
       const minUpdated = args.input.checkpoint
         ? args.input.checkpoint.server_updated_at
@@ -196,7 +188,6 @@ export async function run() {
               server_updated_at: minUpdated,
             },
       };
-      console.log(JSON.stringify(ret, null, 4));
       return ret;
     },
     pushDoors: async (args, request) => {
@@ -244,16 +235,12 @@ export async function run() {
           checkpoint: lastCheckpoint,
         },
       });
-      console.log(writtenDocs);
-
       return writtenDocs;
     },
     streamDoor: async (args) => {
       return pubsub.asyncIterableIterator("streamDoor");
     },
     pullHandshake: async (args, request) => {
-      log("## pullHandshakes()");
-      log(args);
       const lastId = args.input.checkpoint ? args.input.checkpoint.id : "";
       const minUpdated = args.input.checkpoint
         ? args.input.checkpoint.server_updated_at
@@ -285,7 +272,6 @@ export async function run() {
               server_updated_at: minUpdated,
             },
       };
-      console.log(JSON.stringify(ret, null, 4));
       return ret;
     },
     pushHandshake: async (args, request) => {
@@ -324,10 +310,13 @@ export async function run() {
               actor: "SERVER",
             })
           );
+          console.log(array);
+          console.log(JSON.stringify(array));
+          
           newDoc = {
             ...newDocs,
             handshake: newDocs.handshake + `{"server": "ok"}`,
-            events: JSON.stringify(array),
+            events: array.toString(),
             server_created_at: Date.now().toString(),
             server_updated_at: Date.now().toString(),
             diff_time_create: (
@@ -354,8 +343,6 @@ export async function run() {
       return pubsub.asyncIterableIterator("streamHandshake");
     },
     pullLogClients: async (args, request) => {
-      log("## pullLogClient()");
-      log(args);
       const lastId = args.input.checkpoint ? args.input.checkpoint.id : "";
       const minUpdated = args.input.checkpoint
         ? args.input.checkpoint.server_updated_at
@@ -406,6 +393,7 @@ export async function run() {
           newDoc = {
             ...newDocs,
             server_created_at: Date.now().toString(),
+            server_updated_at: Date.now().toString(),
             diff_time_create: (
               Date.now() - Number(row.newDocumentState.client_created_at)
             ).toString(),
@@ -442,7 +430,7 @@ export async function run() {
   );
   const wsServer = new WebSocketServer({
     server: httpServer,
-    path: GRAPHQL_PATH, 
+    path: GRAPHQL_PATH,
   });
 
   useServer(
@@ -459,10 +447,26 @@ export async function run() {
         },
       },
       onConnect: async (ctx) => {
-        console.log("asdasd", ctx.connectionParams);
+        let door_id = ctx.connectionParams.door_id;
+        const existing = await db.door
+          .findOne({ selector: { id: door_id } })
+          .exec();
+        if (existing) {
+          existing.status = "ONLINE";
+          existing.patch(existing);
+        }
+        console.log(door_id," door online");
       },
       onDisconnect: async (ctx, code, reason) => {
-        console.log("asdasd", ctx.connectionParams, code, reason);
+        let door_id = ctx.connectionParams.door_id;
+        const existing = await db.door
+          .findOne({ selector: { id: door_id } })
+          .exec();
+        if (existing) {
+          existing.status = "OFFLINE";
+          existing.patch(existing);
+        }
+        console.log(door_id," door offline");
       },
     },
     wsServer
