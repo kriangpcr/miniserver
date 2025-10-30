@@ -287,6 +287,7 @@ export async function run() {
         if (existing) {
           let array = JSON.parse(existing.events);
           array.push(row.newDocumentState.events);
+          console.log(row.newDocumentState.events, "array");
           newDoc = {
             ...existing.toJSON(),
             handshake:
@@ -303,19 +304,17 @@ export async function run() {
         } else {
           let array = [];
           array.push(row.newDocumentState.events);
-          array.push(
-            JSON.stringify({
-              type: "RECEIVE",
-              at: Date.now().toString(),
-              actor: "SERVER",
-            })
-          );
-          console.log(array);
-          console.log(JSON.stringify(array));
+          array.push(JSON.stringify({
+            type: "RECEIVE",
+            at: Date.now().toString(),
+            actor: "SERVER",
+          }));
+          console.log(array, "array");
+          console.log(JSON.stringify(array), "stringify array");
           newDoc = {
             ...newDocs,
             handshake: newDocs.handshake + `{"server": "ok"}`,
-            events: array.toString(),
+            events: JSON.stringify(array),
             server_created_at: Date.now().toString(),
             server_updated_at: Date.now().toString(),
             diff_time_create: (
@@ -336,6 +335,7 @@ export async function run() {
           checkpoint: lastCheckpoint,
         },
       });
+      console.log("Stream Handshake Published:", { documents: writtenDocs, checkpoint: lastCheckpoint });
       return writtenDocs;
     },
     streamHandshake: async (args) => {
@@ -454,7 +454,7 @@ export async function run() {
           existing.status = "ONLINE";
           existing.patch(existing);
         }
-        console.log(door_id," door online");
+        console.log(door_id, " door online");
       },
       onDisconnect: async (ctx, code, reason) => {
         let door_id = ctx.connectionParams.door_id;
@@ -465,7 +465,7 @@ export async function run() {
           existing.status = "OFFLINE";
           existing.patch(existing);
         }
-        console.log(door_id," door offline");
+        console.log(door_id, " door offline");
       },
     },
     wsServer
