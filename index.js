@@ -450,25 +450,25 @@ export async function run() {
         },
       },
       onConnect: async (ctx) => {
-        let door_id = ctx.connectionParams.client_id;
-        const existing = await db.door
-          .findOne({ selector: { id: door_id } })
-          .exec();
-        if (existing) {
-          existing.status = "ONLINE";
-          existing.patch(existing);
-        }
+        // let door_id = ctx.connectionParams.client_id;
+        // const existing = await db.door
+        //   .findOne({ selector: { id: door_id } })
+        //   .exec();
+        // if (existing) {
+        //   existing.status = "ONLINE";
+        //   existing.patch(existing);
+        // }
         console.log(door_id, " door online");
       },
       onDisconnect: async (ctx, code, reason) => {
-        let door_id = ctx.connectionParams.client_id;
-        const existing = await db.door
-          .findOne({ selector: { id: door_id } })
-          .exec();
-        if (existing) {
-          existing.status = "OFFLINE";
-          existing.patch(existing);
-        }
+        // let door_id = ctx.connectionParams.client_id;
+        // const existing = await db.door
+        //   .findOne({ selector: { id: door_id } })
+        //   .exec();
+        // if (existing) {
+        //   existing.status = "OFFLINE";
+        //   existing.patch(existing);
+        // }
         console.log(door_id, " door offline");
       },
     },
