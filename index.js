@@ -458,7 +458,7 @@ export async function run() {
         //   existing.status = "ONLINE";
         //   existing.patch(existing);
         // }
-        console.log(door_id, " door online");
+        // console.log(door_id, " door online");
       },
       onDisconnect: async (ctx, code, reason) => {
         // let door_id = ctx.connectionParams.client_id;
@@ -469,7 +469,7 @@ export async function run() {
         //   existing.status = "OFFLINE";
         //   existing.patch(existing);
         // }
-        console.log(door_id, " door offline");
+        // console.log(door_id, " door offline");
       },
     },
     wsServer
