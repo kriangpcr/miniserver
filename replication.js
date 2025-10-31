@@ -77,8 +77,8 @@ function setupCollectionReplication(collection, config) {
       wsOptions: {
         retryAttempts: 10,
         connectionParams: () => ({
-          doorId: "123",
-          deviceName: "ประตู 1",
+          server_id: "server-1",
+          type: "server",
         }),
       },
     },

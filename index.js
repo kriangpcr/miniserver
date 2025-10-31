@@ -9,7 +9,7 @@ import { useServer } from "graphql-ws/use/ws";
 import { createServer } from "http";
 import { startReplication } from "./replication.js";
 import { GRAPHQL_PORT, GRAPHQL_PATH, graphQLSchema } from "./shared.js";
-
+import bodyParser from "body-parser";
 import { lastOfArray } from "rxdb";
 
 function log(msg) {
@@ -38,6 +38,8 @@ export async function run() {
   const app = express();
   app.use(cors());
 
+  app.use(bodyParser.json({ limit: "50mb" }));
+  app.use(bodyParser.urlencoded({ limit: "50mb", extended: true }));
   console.log("Server side GraphQL Schema:");
 
   const schema = buildSchema(graphQLSchema);
@@ -286,8 +288,7 @@ export async function run() {
           .exec();
         if (existing) {
           let array = JSON.parse(existing.events);
-          array.push(row.newDocumentState.events);
-          console.log(row.newDocumentState.events, "array");
+          array.push(JSON.parse(row.newDocumentState.events));
           newDoc = {
             ...existing.toJSON(),
             handshake:
@@ -303,14 +304,13 @@ export async function run() {
           writtenDocs.push(newDoc);
         } else {
           let array = [];
-          array.push(row.newDocumentState.events);
-          array.push(JSON.stringify({
+          array.push(JSON.parse(row.newDocumentState.events));
+          array.push({
             type: "RECEIVE",
             at: Date.now().toString(),
             actor: "SERVER",
-          }));
-          console.log(array, "array");
-          console.log(JSON.stringify(array), "stringify array");
+          });
+          console.log(array);
           newDoc = {
             ...newDocs,
             handshake: newDocs.handshake + `{"server": "ok"}`,
@@ -321,6 +321,7 @@ export async function run() {
               Date.now() - Number(row.newDocumentState.client_created_at)
             ).toString(),
           };
+          console.log(newDoc, "new DOC");
           await db.handshake.upsert(newDoc);
           writtenDocs.push(newDoc);
         }
@@ -335,7 +336,10 @@ export async function run() {
           checkpoint: lastCheckpoint,
         },
       });
-      console.log("Stream Handshake Published:", { documents: writtenDocs, checkpoint: lastCheckpoint });
+      console.log("Stream Handshake Published:", {
+        documents: writtenDocs,
+        checkpoint: lastCheckpoint,
+      });
       return writtenDocs;
     },
     streamHandshake: async (args) => {
@@ -446,7 +450,7 @@ export async function run() {
         },
       },
       onConnect: async (ctx) => {
-        let door_id = ctx.connectionParams.door_id;
+        let door_id = ctx.connectionParams.client_id;
         const existing = await db.door
           .findOne({ selector: { id: door_id } })
           .exec();
@@ -457,7 +461,7 @@ export async function run() {
         console.log(door_id, " door online");
       },
       onDisconnect: async (ctx, code, reason) => {
-        let door_id = ctx.connectionParams.door_id;
+        let door_id = ctx.connectionParams.client_id;
         const existing = await db.door
           .findOne({ selector: { id: door_id } })
           .exec();
